@@ -1,19 +1,43 @@
 /* ==========================================================================
    RESCUEPRIORITY - ANALYTICS / GRAPHS
    ----------------------------------------------------------------------
-   Reuses the live `incidents` array + `database` already maintained by
-   script.js (imported below — this does NOT open a second Firebase
-   listener on /incidents and does NOT initialize a second Firebase app).
+   Reuses the existing `database` instance from script.js (so this does NOT
+   initialize a second Firebase app). It DOES set up its own read-only
+   onValue() listener on /incidents — deliberately, not via a cross-module
+   live-binding import — because relying on script.js's internal `incidents`
+   variable proved unreliable (the Incident Log, which reads that variable
+   directly inside script.js, stayed in sync; this file, reading it through
+   an ES import, did not always see updates). A dedicated listener here is
+   simpler to reason about and guaranteed to match Firebase's actual state.
+   /incidents already has ".read: true" in the Firebase rules, so this needs
+   no rule changes.
 
-   script.js dispatches two plain DOM events this file listens for:
-     - "rp:incidents-updated"        -> fired every time /incidents changes
+   script.js dispatches one plain DOM event this file listens for:
      - "rp:analytics-view-activated" -> fired the moment the Analytics tab
                                          is opened (so charts are built with
                                          correct canvas dimensions the first
                                          time, instead of while hidden)
 ========================================================================== */
 
-import { incidents } from "./script.js";
+import { database } from "./script.js";
+import { ref, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+const incidentsRootRef = ref(database, "incidents");
+let incidents = [];
+
+function setupIncidentsListener() {
+    onValue(
+        incidentsRootRef,
+        (snapshot) => {
+            const data = snapshot.val() || {};
+            incidents = Object.keys(data).map(key => ({ key, ...data[key] }));
+            refreshAnalytics();
+        },
+        (error) => {
+            console.error("[analytics listener] Firebase read failed:", error.code, error.message);
+        }
+    );
+}
 
 /* ==========================================================================
    CHART INSTANCES (created once, then updated in place)
@@ -462,9 +486,7 @@ function setupRefreshButton() {
 document.addEventListener("DOMContentLoaded", () => {
     setupPeriodControl();
     setupRefreshButton();
-
-    // Real-time: rebuild whenever script.js's /incidents listener fires.
-    window.addEventListener("rp:incidents-updated", refreshAnalytics);
+    setupIncidentsListener();
 
     // Build charts (with correct canvas size) the first time the tab is opened,
     // and force a resize on every subsequent open — a hidden -> visible CSS
@@ -476,11 +498,4 @@ document.addEventListener("DOMContentLoaded", () => {
             Object.values(charts).forEach(chart => chart && chart.resize());
         });
     });
-
-    // If the user is already on the Analytics tab on load (e.g. deep link),
-    // render immediately too.
-    const analyticsView = document.getElementById("analytics-view");
-    if (analyticsView && !analyticsView.classList.contains("hidden")) {
-        refreshAnalytics();
-    }
 });
