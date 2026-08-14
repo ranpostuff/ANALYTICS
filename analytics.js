@@ -300,6 +300,16 @@ function buildOrUpdateCharts() {
     Chart.defaults.color = palette.textSecondary;
 
     if (!chartsBuilt) {
+        // Defensive: if a chart instance somehow already exists on one of
+        // these canvases (e.g. a duplicate build call slipped through),
+        // destroy it first — Chart.js throws if you construct a new chart
+        // on a canvas that's already in use.
+        ["chart-frequency", "chart-classroom", "chart-hour", "chart-weekday", "chart-status"].forEach(id => {
+            const canvas = document.getElementById(id);
+            const existing = canvas && Chart.getChart(canvas);
+            if (existing) existing.destroy();
+        });
+
         charts.frequency = new Chart(document.getElementById("chart-frequency"), {
             type: "line",
             data: {
@@ -410,9 +420,24 @@ function baseBarOptions(palette, horizontalLabelsOnly) {
 }
 
 /* ==========================================================================
-   INITIALIZATION / EVENT WIRING
+   VISIBILITY GUARD
+   Chart.js sizes a new chart to its canvas's current pixel dimensions. If a
+   chart is first created while the Analytics tab is hidden (display:none),
+   the canvas is 0x0 and the chart stays invisible forever, even after the
+   tab is opened. So: never build charts for the first time while hidden —
+   only update KPI text (cheap, no layout needed) until the tab is actually
+   visible.
 ========================================================================== */
+function isAnalyticsViewVisible() {
+    const view = document.getElementById("analytics-view");
+    return !!view && !view.classList.contains("hidden");
+}
+
 function refreshAnalytics() {
+    if (!chartsBuilt && !isAnalyticsViewVisible()) {
+        renderKpis(computeKpis(getValidIncidents()));
+        return;
+    }
     buildOrUpdateCharts();
 }
 
@@ -441,8 +466,16 @@ document.addEventListener("DOMContentLoaded", () => {
     // Real-time: rebuild whenever script.js's /incidents listener fires.
     window.addEventListener("rp:incidents-updated", refreshAnalytics);
 
-    // Build charts (with correct canvas size) the first time the tab is opened.
-    window.addEventListener("rp:analytics-view-activated", refreshAnalytics);
+    // Build charts (with correct canvas size) the first time the tab is opened,
+    // and force a resize on every subsequent open — a hidden -> visible CSS
+    // flip doesn't fire a window resize event, so Chart.js won't notice its
+    // canvas now has real dimensions unless told explicitly.
+    window.addEventListener("rp:analytics-view-activated", () => {
+        refreshAnalytics();
+        requestAnimationFrame(() => {
+            Object.values(charts).forEach(chart => chart && chart.resize());
+        });
+    });
 
     // If the user is already on the Analytics tab on load (e.g. deep link),
     // render immediately too.
