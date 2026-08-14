@@ -297,16 +297,19 @@ function toggleEmptyNote(id, isEmpty) {
    — this keeps Firebase-driven re-renders cheap and avoids flicker.
 ========================================================================== */
 function buildOrUpdateCharts() {
+    const validIncidents = getValidIncidents();
+
+    // KPIs never depend on Chart.js — render them first, unconditionally,
+    // so a blocked/failed CDN never blanks out the numbers.
+    renderKpis(computeKpis(validIncidents));
+
     if (typeof Chart === "undefined") {
-        // Chart.js failed to load (e.g. offline/CDN blocked) — fail quietly,
-        // KPIs still render above.
+        // Chart.js failed to load (e.g. CDN blocked on this network).
+        // KPIs above still rendered; skip only the graphs themselves.
         return;
     }
 
     const palette = getPalette();
-    const validIncidents = getValidIncidents();
-
-    renderKpis(computeKpis(validIncidents));
 
     const freq = buildFrequencySeries(validIncidents, currentPeriod);
     const classroom = buildClassroomSeries(validIncidents);
@@ -497,5 +500,11 @@ document.addEventListener("DOMContentLoaded", () => {
         requestAnimationFrame(() => {
             Object.values(charts).forEach(chart => chart && chart.resize());
         });
+    });
+
+    // If Chart.js loaded via the fallback CDN (see index.html) after this
+    // module already ran once with Chart undefined, build the charts now.
+    window.addEventListener("rp:chartjs-loaded", () => {
+        buildOrUpdateCharts();
     });
 });
