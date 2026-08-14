@@ -13,47 +13,10 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="analytics.css">
 
-    <!-- Chart.js — tries three different CDN providers in order (jsdelivr,
-         cdnjs, unpkg). Schools/networks that block one CDN domain often
-         don't block all of them, so this gives the graphs the best chance
-         of loading without any manual file download. If ALL three are
-         blocked, the KPI cards above the graphs still work either way —
-         only the charts themselves would stay empty. -->
-    <script>
-        (function () {
-            var CHART_JS_SOURCES = [
-                "https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js",
-                "https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js",
-                "https://unpkg.com/chart.js@4.4.4/dist/chart.umd.min.js"
-            ];
-
-            function tryLoad(index) {
-                if (index >= CHART_JS_SOURCES.length) {
-                    console.warn(
-                        "RescuePriority Analytics: Chart.js could not be loaded from any CDN " +
-                        "(jsdelivr, cdnjs, unpkg all failed). KPI numbers will still work; " +
-                        "the graphs themselves will stay empty until Chart.js is self-hosted locally."
-                    );
-                    return;
-                }
-
-                var script = document.createElement("script");
-                script.src = CHART_JS_SOURCES[index];
-
-                script.onload = function () {
-                    window.dispatchEvent(new Event("rp:chartjs-loaded"));
-                };
-
-                script.onerror = function () {
-                    tryLoad(index + 1);
-                };
-
-                document.head.appendChild(script);
-            }
-
-            tryLoad(0);
-        })();
-    </script>
+    <!-- Chart.js — self-hosted locally (not loaded from a CDN) so the
+         Analytics charts work even on networks that block CDN domains.
+         Make sure chart.umd.min.js sits in this same ANALYTICS folder. -->
+    <script src="chart.umd.min.js"></script>
 </head>
 <body class="eoc-dashboard-body">
 
