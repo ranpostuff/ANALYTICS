@@ -13,8 +13,11 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="analytics.css">
 
-    <!-- Chart.js (CDN — no bundler needed, GitHub Pages compatible) -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+    <!-- Chart.js (CDN — no bundler needed, GitHub Pages compatible).
+         Falls back to a second CDN if the first is unreachable (some
+         networks/firewalls block jsdelivr specifically). -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"
+            onerror="var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js';s.onload=function(){window.dispatchEvent(new Event('rp:chartjs-loaded'));};document.head.appendChild(s);"></script>
 </head>
 <body class="eoc-dashboard-body">
 
