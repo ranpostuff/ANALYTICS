@@ -491,6 +491,13 @@ document.addEventListener("DOMContentLoaded", () => {
     setupRefreshButton();
     setupIncidentsListener();
 
+    // Chart.js (loaded in index.html) tries three CDNs in sequence — that
+    // can finish loading AFTER this module has already run once with Chart
+    // undefined. If/when it does finish, build the charts at that point.
+    window.addEventListener("rp:chartjs-loaded", () => {
+        buildOrUpdateCharts();
+    });
+
     // Build charts (with correct canvas size) the first time the tab is opened,
     // and force a resize on every subsequent open — a hidden -> visible CSS
     // flip doesn't fire a window resize event, so Chart.js won't notice its
@@ -500,11 +507,5 @@ document.addEventListener("DOMContentLoaded", () => {
         requestAnimationFrame(() => {
             Object.values(charts).forEach(chart => chart && chart.resize());
         });
-    });
-
-    // If Chart.js loaded via the fallback CDN (see index.html) after this
-    // module already ran once with Chart undefined, build the charts now.
-    window.addEventListener("rp:chartjs-loaded", () => {
-        buildOrUpdateCharts();
     });
 });
